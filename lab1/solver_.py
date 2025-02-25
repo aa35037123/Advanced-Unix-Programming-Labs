@@ -5,6 +5,7 @@ import sys
 import base64
 import zlib
 import random
+import itertools
 from pwn import *
 from solpow import solve_pow
 
@@ -38,6 +39,14 @@ def recv_AB(r):
     b = int.from_bytes(m[5:9], 'big')
     return a, b
 
+def swap(guess, i, j):
+    """
+    convert guess to list, swap i-th and j-th element, then return as a string.
+    """
+    guess_list = list(guess)
+    guess_list[i], guess_list[j] = guess_list[j], guess_list[i]
+    return "".join(guess_list)
+
 def guess_number(r):
     #response = recv_msg(r)
     #print("[+] Server sent: {response}")
@@ -51,7 +60,16 @@ def guess_number(r):
     corrects = 0
     msg0 = recv_msg(r)  # First message (MSG0)
     print(f"[+] Server sent: {msg0}")
-    while True:
+    count = 0
+    win = False
+    special_candidates = []
+    special_event = False
+    changed_index = None
+
+    swap_combinations = None
+    swap_comb_used = None
+
+    while True and count < 10:
         prompt = recv_msg(r)
         print(f"[+] Server prompt: {prompt}")
         send_msg(r, guess.encode())
@@ -61,127 +79,237 @@ def guess_number(r):
         print(f"A: {A}, B: {B}")
         print(f'Digits: {digits}')
         print(f'Right numbers: {right_numbers}')
+        print(f'Confirmed positions: {confirmed_positions}')
+        print(f'Possible indices: {possible_indices}')
+        print(f'Special_candidates: {special_candidates}')
+        print(f'prev_guess: {prev_guess}')
+        print(f'guess: {guess}')
+        print(f'special event: {special_event}')
+        print(f"Changed index: {changed_index}")
         if A == 4:  # win condition
             print("You win!")
             print(f"The number is: {guess}")
+            win = True
             break
 
-        # A value different
-        if A != prev_A and B == prev_B and prev_guess is not None:
-            if A < prev_A:
-                confirmed_positions[changed_index] = prev_guess[changed_index]
-                if prev_guess[changed_index] in digits:
-                    digits.remove(prev_guess[changed_index])
-                
-                # Reset guess
+        if (A + B) < 4:
+            if A + B == 0:
+                print("## A + B == 0")
                 guess_list = list(guess)
-                guess_list[changed_index] = prev_guess[changed_index]
-                guess = "".join(guess_list)
-
-                A = prev_A  # after reset guess digit, we need to reset A
-
-            elif A > prev_A:
-                confirmed_positions[changed_index] = guess[changed_index]  
-                if guess[changed_index] in digits:
-                    digits.remove(guess[changed_index])  
+                for digit in guess_list:
+                    if digit in digits:
+                        digits.remove(digit)
             
-            corrects += 1
-            possible_indices[changed_index] = 1
+            # only one situation that both A and B are different from the previous one at the same time
+            elif (A+B) == (prev_A + prev_B) and prev_guess is not None:
+                print("## (A+B) == (prev_A + prev_B)")
+                # there are 3 classes of this case
+                # 1. A = prev_A, B = prev_B (ex: 1A1B -> 1A1B)
+                #    - either prev_guess[changed_index] and guess[changed_index] are right number(wrong position)
+                #    - or both are wrong number
+                if A == prev_A and B == prev_B and B != 0:
+                    print("## A == prev_A and B == prev_B")
+                    if not special_event:
+                        special_event = True
+                        print(f"special candidates appends: {guess[changed_index]} and {prev_guess[changed_index]}")
+                        special_candidates.append(guess[changed_index])
+                        special_candidates.append(prev_guess[changed_index])
+    
+                    else: # reset special event
+                        if guess[changed_index] not in special_candidates:
+                            special_candidates.append(guess[changed_index])
+                        # for special_candidate in special_candidates:
+                        #     if special_candidate not in right_numbers:
+                        #         right_numbers.append(special_candidate)
+                        # special_candidates = []
+                        
+                        # special_event = False
 
-        # B value different
-        if B != prev_B and A == prev_A and prev_guess is not None:
-            if B < prev_B:
-                right_numbers.append(prev_guess[changed_index])
+                        # possible_indices[changed_index] = 1
+
+                # 2. A < prev_A, B > prev_B (ex: 1A1B -> 0A2B)
+                #    - prev_guess[changed_index] is confirmed number, guess[changed_index] is right number
+                elif A < prev_A and B > prev_B:
+                    print("## A < prev_A and B > prev_B")
+                    confirmed_positions[changed_index] = prev_guess[changed_index]
+                    if prev_guess[changed_index] in digits:  # remove confirmed number from digits
+                        digits.remove(prev_guess[changed_index])
+                    if guess[changed_index] not in right_numbers:
+                        right_numbers.append(guess[changed_index])
+                    
+                    # Reset guess
+                    guess_list = list(guess)
+                    guess_list[changed_index] = prev_guess[changed_index]
+                    guess = "".join(guess_list)
+
+                    A = prev_A  # after reset guess digit, we need to reset A
+                    B = prev_B  # after reset guess digit, B value need to -1
+                    possible_indices[changed_index] = 1
+
+                # 3. A > prev_A, B < prev_B (ex: 0A2B -> 1A1B)
+                #    - guess[changed_index] is confirmed number, prev_guess[changed_index] is right number  
+                elif A > prev_A and B < prev_B:
+                    print("## A > prev_A and B < prev_B")
+                    confirmed_positions[changed_index] = guess[changed_index]
+                    if guess[changed_index] in digits:  # remove confirmed number from digits
+                        digits.remove(guess[changed_index])
+                    if prev_guess[changed_index] not in right_numbers:
+                        right_numbers.append(prev_guess[changed_index])
+                    # ex: 1A1B -> 2A0B 
+                    if special_event:
+                        for special_candidate in special_candidates:
+                            if special_candidate in digits:
+                                # digits.remove(special_candidate)
+                                right_numbers.append(special_candidate)
+
+                        special_candidates = []
+                        special_event = False
+                    possible_indices[changed_index] = 1
+
+            # A value different
+            elif A != prev_A and B == prev_B and prev_guess is not None:
+                print("## A value different")
+                if A < prev_A:
+                    confirmed_positions[changed_index] = prev_guess[changed_index]
+                    if prev_guess[changed_index] in digits:
+                        digits.remove(prev_guess[changed_index])  # remove confirmed number from digits
+                    
+                    # Reset guess
+                    guess_list = list(guess)
+                    guess_list[changed_index] = prev_guess[changed_index]
+                    guess = "".join(guess_list)
+
+                    A = prev_A  # after reset guess digit, we need to reset A
+
+                elif A > prev_A:
+                    confirmed_positions[changed_index] = guess[changed_index]  
+                    if guess[changed_index] in digits:
+                        digits.remove(guess[changed_index])  
                 
-                guess_list = list(guess)
-                guess_list[changed_index] = prev_guess[changed_index]
-                guess = "".join(guess_list)
+                corrects += 1
+                possible_indices[changed_index] = 1
 
-                B = prev_B  # after reset guess digit, we need to reset B
+                if special_event:  # because in the condition, we don't have enough info
+                    special_candidates = []
+                    special_event = False
 
-            elif B > prev_B:
-                right_numbers.append(guess[changed_index])
-                
-            possible_indices[changed_index] = 1
+            # B value different
+            elif B != prev_B and A == prev_A and prev_guess is not None:
+                print("## B value different")
+                if B < prev_B:
+                    if guess[changed_index] in digits:
+                        digits.remove(guess[changed_index])
+
+                    if prev_guess[changed_index] not in right_numbers:
+                        right_numbers.append(prev_guess[changed_index])
+
+                    guess_list = list(guess)
+                    guess_list[changed_index] = prev_guess[changed_index]
+                    guess = "".join(guess_list)
+
+                    B = prev_B  # after reset guess digit, we need to reset B
+
+                    if special_event:
+                        for special_candidate in special_candidates:
+                            if special_candidate not in right_numbers:
+                                right_numbers.append(special_candidate)
+                        special_candidates = []
+                        special_event = False
+
+                elif B > prev_B:
+                    if prev_guess[changed_index] in digits:
+                        digits.remove(prev_guess[changed_index])
+
+                    if guess[changed_index] not in right_numbers:
+                        right_numbers.append(guess[changed_index])
+
+                    if special_event:
+                        for special_candidate in special_candidates:
+                            if special_candidate in digits:
+                                digits.remove(special_candidate)
+
+                        special_candidates = []
+                        special_event = False
+
+                possible_indices[changed_index] = 1
         
-        # A and B value different(both prev_guess[changed_index] and guess[changed_index] are correct number)
-        if A != prev_A and B != prev_B and prev_guess is not None:
-            if A > prev_A and B < prev_B:
-                confirmed_positions[changed_index] = guess[changed_index]
-                if guess[changed_index] in digits:
-                    digits.remove(guess[changed_index])
-                if prev_guess[changed_index] not in right_numbers:
-                    right_numbers.append(prev_guess[changed_index])
-
-            elif A < prev_A and B > prev_B:
-                confirmed_positions[changed_index] = prev_guess[changed_index]
-                if prev_guess[changed_index] in digits:
-                    digits.remove(prev_guess[changed_index])
-                if guess[changed_index] not in right_numbers:
-                    right_numbers.append(guess[changed_index])
-                
-                # Reset guess
-                guess_list = list(guess)
-                guess_list[changed_index] = prev_guess[changed_index]
-                guess = "".join(guess_list)
-
-                A = prev_A  # after reset guess digit, we need to reset A
-
-        if A == prev_A and B == prev_B and prev_guess is not None:
-            print("Removing impossible numbers...")
-            digits = [d for d in digits if d not in [prev_guess[changed_index], guess[changed_index]]]
-            if guess[changed_index] in digits:
-                digits.remove(guess[changed_index])
-            if guess[changed_index] in digits:
-                digits.remove(prev_guess[changed_index])
 
         """
         # Start new guessing
         """
-        prev_guess = guess
         guess = list(guess)
-        prev_A, prev_B = A, B
-
-        if (A + B) == 4:
+        if prev_guess is not None:
+            prev_guess = list(prev_guess)
+        # print("Prev guess: ", prev_guess)
+        if (A + B) == 4:  # all numbers are correct, adjust position
             print("All numbers are correct, adjusting position...")
-            print(f'Right numbers: {right_numbers}')
-            guess = confirmed_positions
-            for i, digit in enumerate(guess):
-                if digit is None:
-                    d = random.choice(right_numbers)
-                    while d in guess[:i+1] or d == prev_guess[i]:
-                        # print('##Hi')
-                        d = random.choice(right_numbers)
-                    guess[i] = d
-        else:
+            # print(f'Right numbers: {right_numbers}')
+            print(f'Confirmed positions: {confirmed_positions}')
+
+            if swap_combinations is None:
+                none_indices = [i for i, value in enumerate(confirmed_positions) if value is None]
+                swap_combinations = list(itertools.combinations(none_indices, 2))
+                
+                print(f"Swap combinations: {swap_combinations}")
+                swap_comb_used = [0] * len(swap_combinations)
+            
+            if A < prev_A:
+                guess = swap(guess, prev_swap[0], prev_swap[1])
+                print(f'>> swapping back guess: {guess}')
+            for idx, (i, j) in enumerate(swap_combinations):  # target: (0, 2)
+                if(swap_comb_used[idx] == 1):
+                    continue
+                
+                guess = swap(guess, i, j)
+                prev_swap = (i, j)
+                swap_comb_used[idx] = 1
+                break
+
+            # # Step 1: Find indices where confirmed_positions is None
+            # none_indices = [i for i, value in enumerate(confirmed_positions) if value is None]
+            # guess_tmp = guess[:]
+            # # rotate the uncertain poistion numbers to left
+            # for i, index in enumerate(none_indices):
+            #     guess[index] = guess_tmp[none_indices[(i+1)%len(none_indices)]]
+            
+
+        else:  # Some numbers are still wrong
             print("Changing numbers...")
             none_indices = [i for i, value in enumerate(possible_indices) if value is None]
-            changed_index = random.choice(none_indices)
-            print(f"Changed index: {changed_index}")
-            d = random.choice(digits)
-            while d in prev_guess:
-                # print('##Hi')
-                d = random.choice(digits)
+            if not special_event:
+                changed_index = random.choice(none_indices)
+            d = '-1'
+            if right_numbers is not None:
+                
+                for right_num in right_numbers:
+                    if right_num not in guess and right_num not in special_candidates:
+                        if prev_guess is not None and right_num not in prev_guess:
+                            d = right_num
+                            break
+                # while d in prev_guess or d < 0:
+                #     d = random.choice(right_numbers)
+            # If can not find in right_numbers, choose from digits
+            if prev_guess is not None:
+                while d in prev_guess or d in guess or int(d) < 0:
+                    # print('##Hi')
+                    d = random.choice(digits)
+            else:
+                while d in guess or int(d) < 0:
+                    d = random.choice(digits)
+            
+            prev_guess = guess[:]
             guess[changed_index] = d
-        
-        guess = ''.join(guess)
-        # score = A + B
-        # if score > 0:
-        #     if score >= best_score:
-        #         best_score = score
-        #         print("Add numbers to possible numbers...")
-        #         for i in range(4):
-        #             right_numbers.add(guess[i])
-        #     else:  # kick off numbers that make 
+            guess = ''.join(guess)
 
-        # else:
-        #     print("Removing impossible numbers...")
-        #     digits = [d for d in digits if d not in guess]
-
-        # not_in_guess = [d for d in digits if d not in guess]
+        prev_A, prev_B = A, B
         print(recv_msg(r))
+        count += 1
+        print("------------------------------")
 
-    print(recv_msg(r))
+    if not win:
+        print("> You lose!")
+    else:
+        print(recv_msg(r))
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
