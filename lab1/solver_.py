@@ -47,6 +47,12 @@ def swap(guess, i, j):
     guess_list[i], guess_list[j] = guess_list[j], guess_list[i]
     return "".join(guess_list)
 
+def analyze_ab(guess, target):
+    # Calculate the A and B count for a guess vs target.
+    A = sum(1 for g, t in zip(guess, target) if g == t)
+    B = sum(1 for g in guess if g in target) - A
+    return A, B
+
 def guess_number(r):
     #response = recv_msg(r)
     #print("[+] Server sent: {response}")
@@ -66,7 +72,7 @@ def guess_number(r):
     special_event = False
     changed_index = None
 
-    swap_combinations = None
+    possible_combinations = None
     swap_comb_used = None
 
     while True and count < 10:
@@ -246,31 +252,40 @@ def guess_number(r):
             # print(f'Right numbers: {right_numbers}')
             print(f'Confirmed positions: {confirmed_positions}')
 
-            if swap_combinations is None:
+            if possible_combinations is None:
+                possible_combinations = []
+                right_numbers = [guess[i] for i, value in enumerate(confirmed_positions) if value is None]
                 none_indices = [i for i, value in enumerate(confirmed_positions) if value is None]
-                swap_combinations = list(itertools.combinations(none_indices, 2))
-                
-                print(f"Swap combinations: {swap_combinations}")
-                swap_comb_used = [0] * len(swap_combinations)
-            
-            if A < prev_A:
-                guess = swap(guess, prev_swap[0], prev_swap[1])
-                print(f'>> swapping back guess: {guess}')
-            for idx, (i, j) in enumerate(swap_combinations):  # target: (0, 2)
-                if(swap_comb_used[idx] == 1):
-                    continue
-                
-                guess = swap(guess, i, j)
-                prev_swap = (i, j)
-                swap_comb_used[idx] = 1
-                break
+                # print(f'Right numbers: {right_numbers}')
+                # print(f'None indices: {none_indices}')
+                for perm in itertools.permutations(right_numbers, len(none_indices)):
+                    # print("perm: ", perm)
+                    new_guess = confirmed_positions[:]   # 複製一份 confirmed_positions
+                    for idx, pos in enumerate(none_indices):
+                        new_guess[pos] = perm[idx]
+                    # print("new_guess: ", new_guess)
+                    # Convert new_guess into string and append to possible_combinations
+                    possible_combinations.append("".join(new_guess))    
+                # possible_combinations = list(itertools.combinations(none_indices, 2))
+            # print(f"Before Filter possible combinations: {possible_combinations}")
 
-            # # Step 1: Find indices where confirmed_positions is None
-            # none_indices = [i for i, value in enumerate(confirmed_positions) if value is None]
-            # guess_tmp = guess[:]
-            # # rotate the uncertain poistion numbers to left
-            # for i, index in enumerate(none_indices):
-            #     guess[index] = guess_tmp[none_indices[(i+1)%len(none_indices)]]
+            possible_combinations = [
+                num_str for num_str in possible_combinations if analyze_ab("".join(guess), num_str) == (A, B)
+            ]
+            print(f"possible combinations: {possible_combinations}")
+            
+            guess = possible_combinations[0]
+            # if A < prev_A:
+            #     guess = swap(guess, prev_swap[0], prev_swap[1])
+            #     print(f'>> swapping back guess: {guess}')
+            # for idx, (i, j) in enumerate(possible_combinations):  # target: (0, 2)
+            #     if(swap_comb_used[idx] == 1):
+            #         continue
+                
+            #     guess = swap(guess, i, j)
+            #     prev_swap = (i, j)
+            #     swap_comb_used[idx] = 1
+            #     break
             
 
         else:  # Some numbers are still wrong
