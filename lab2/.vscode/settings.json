@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "errno.h": "c",
+        "init.h": "c",
+        "device.h": "c",
+        "mutex.h": "c",
+        "cdev.h": "c",
+        "kernel.h": "c",
+        "vermagic.h": "c",
+        "orc_header.h": "c",
+        "module.h": "c",
+        "fs.h": "c",
+        "list.h": "c",
+        "printk.h": "c",
+        "scatterlist.h": "c",
+        "cred.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c",
+        "vector": "c"
+    }
+}

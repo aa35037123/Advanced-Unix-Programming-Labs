@@ -1,0 +1,1 @@
+savedcmd_/build/hellomod/hellomod.ko := x86_64-linux-gnu-ld -r -m elf_x86_64 -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T scripts/module.lds -o /build/hellomod/hellomod.ko /build/hellomod/hellomod.o /build/hellomod/hellomod.mod.o;  make -f ./arch/x86/Makefile.postlink /build/hellomod/hellomod.ko

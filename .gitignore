@@ -1,0 +1,4 @@
+*.o
+*.cpio
+*.bz2
+lab2/rootfs
