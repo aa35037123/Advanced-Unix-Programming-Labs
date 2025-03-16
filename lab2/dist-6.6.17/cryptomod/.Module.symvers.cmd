@@ -1,1 +1,1 @@
-savedcmd_/build/cryptomod/Module.symvers :=  scripts/mod/modpost -M        -o /build/cryptomod/Module.symvers -T /build/cryptomod/modules.order -i Module.symvers -e 
+savedcmd_/build/dist-6.6.17/cryptomod/Module.symvers :=  scripts/mod/modpost -M        -o /build/dist-6.6.17/cryptomod/Module.symvers -T /build/dist-6.6.17/cryptomod/modules.order -i Module.symvers -e 

@@ -1,8 +1,8 @@
-savedcmd_/build/cryptomod/cryptomod.o := x86_64-linux-gnu-gcc -Wp,-MMD,/build/cryptomod/.cryptomod.o.d -nostdinc -I./arch/x86/include -I./arch/x86/include/generated  -I./include -I./arch/x86/include/uapi -I./arch/x86/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ -fmacro-prefix-map=./= -Werror -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -fcf-protection=branch -fno-jump-tables -m64 -falign-jumps=1 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mpreferred-stack-boundary=3 -mskip-rax-setup -mtune=generic -mno-red-zone -mcmodel=kernel -Wno-sign-compare -fno-asynchronous-unwind-tables -fno-delete-null-pointer-checks -O2 -fno-allow-store-data-races -fstack-protector-strong -fomit-frame-pointer -fno-stack-clash-protection -falign-functions=16 -fno-strict-overflow -fno-stack-check -fconserve-stack -Wall -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wframe-larger-than=2048 -Wno-main -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-dangling-pointer -Wvla -Wno-pointer-sign -Wcast-function-type -Wno-array-bounds -Wno-alloc-size-larger-than -Wimplicit-fallthrough=5 -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Wenum-conversion -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-restrict -Wno-packed-not-aligned -Wno-format-overflow -Wno-format-truncation -Wno-stringop-overflow -Wno-stringop-truncation -Wno-missing-field-initializers -Wno-type-limits -Wno-shift-negative-value -Wno-maybe-uninitialized -Wno-sign-compare -DEXPORT_SYMTAB  -DMODULE  -DKBUILD_BASENAME='"cryptomod"' -DKBUILD_MODNAME='"cryptomod"' -D__KBUILD_MODNAME=kmod_cryptomod -c -o /build/cryptomod/cryptomod.o /build/cryptomod/cryptomod.c   ; ./tools/objtool/objtool --hacks=jump_label --hacks=noinstr --ibt --orc --static-call --uaccess  --link  --module /build/cryptomod/cryptomod.o
+savedcmd_/build/dist-6.6.17/cryptomod/cryptomod.o := x86_64-linux-gnu-gcc -Wp,-MMD,/build/dist-6.6.17/cryptomod/.cryptomod.o.d -nostdinc -I./arch/x86/include -I./arch/x86/include/generated  -I./include -I./arch/x86/include/uapi -I./arch/x86/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ -fmacro-prefix-map=./= -Werror -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -fcf-protection=branch -fno-jump-tables -m64 -falign-jumps=1 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mpreferred-stack-boundary=3 -mskip-rax-setup -mtune=generic -mno-red-zone -mcmodel=kernel -Wno-sign-compare -fno-asynchronous-unwind-tables -fno-delete-null-pointer-checks -O2 -fno-allow-store-data-races -fstack-protector-strong -fomit-frame-pointer -fno-stack-clash-protection -falign-functions=16 -fno-strict-overflow -fno-stack-check -fconserve-stack -Wall -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wframe-larger-than=2048 -Wno-main -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-dangling-pointer -Wvla -Wno-pointer-sign -Wcast-function-type -Wno-array-bounds -Wno-alloc-size-larger-than -Wimplicit-fallthrough=5 -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Wenum-conversion -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-restrict -Wno-packed-not-aligned -Wno-format-overflow -Wno-format-truncation -Wno-stringop-overflow -Wno-stringop-truncation -Wno-missing-field-initializers -Wno-type-limits -Wno-shift-negative-value -Wno-maybe-uninitialized -Wno-sign-compare -DEXPORT_SYMTAB  -DMODULE  -DKBUILD_BASENAME='"cryptomod"' -DKBUILD_MODNAME='"cryptomod"' -D__KBUILD_MODNAME=kmod_cryptomod -c -o /build/dist-6.6.17/cryptomod/cryptomod.o /build/dist-6.6.17/cryptomod/cryptomod.c   ; ./tools/objtool/objtool --hacks=jump_label --hacks=noinstr --ibt --orc --static-call --uaccess  --link  --module /build/dist-6.6.17/cryptomod/cryptomod.o
 
-source_/build/cryptomod/cryptomod.o := /build/cryptomod/cryptomod.c
+source_/build/dist-6.6.17/cryptomod/cryptomod.o := /build/dist-6.6.17/cryptomod/cryptomod.c
 
-deps_/build/cryptomod/cryptomod.o := \
+deps_/build/dist-6.6.17/cryptomod/cryptomod.o := \
   include/linux/compiler-version.h \
     $(wildcard include/config/CC_VERSION_TEXT) \
   include/linux/kconfig.h \
@@ -1042,7 +1042,7 @@ deps_/build/cryptomod/cryptomod.o := \
   arch/x86/include/asm/device.h \
   include/linux/pm_wakeup.h \
   include/linux/cdev.h \
-  /build/cryptomod/cryptomod.h \
+  /build/dist-6.6.17/cryptomod/cryptomod.h \
   include/crypto/skcipher.h \
     $(wildcard include/config/CRYPTO_STATS) \
   include/linux/crypto.h \
@@ -1131,8 +1131,8 @@ deps_/build/cryptomod/cryptomod.o := \
   arch/x86/include/asm/vmalloc.h \
   arch/x86/include/asm/pgtable_areas.h \
 
-/build/cryptomod/cryptomod.o: $(deps_/build/cryptomod/cryptomod.o)
+/build/dist-6.6.17/cryptomod/cryptomod.o: $(deps_/build/dist-6.6.17/cryptomod/cryptomod.o)
 
-$(deps_/build/cryptomod/cryptomod.o):
+$(deps_/build/dist-6.6.17/cryptomod/cryptomod.o):
 
-/build/cryptomod/cryptomod.o: $(wildcard ./tools/objtool/objtool)
+/build/dist-6.6.17/cryptomod/cryptomod.o: $(wildcard ./tools/objtool/objtool)

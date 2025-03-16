@@ -1,0 +1,25 @@
+# Advanced unix programming lab2
+
+## Docker Usage
+- Image to container: 
+  - remove it after leaving
+    ```
+    docker run -it --rm --user "0:0" -v "`pwd`:/build" -w /build -e PS1="buildenv:\w\$ " aa35037123/crossbuild /bin/bash --norc
+    ```
+    - Name it and it'll keep once created
+    ```
+    docker run -it --name aup_lab2  --user "0:0" -v "$(pwd):/build" -w /build -e PS1="buildenv:\w\$ " aa35037123/crossbuild /bin/bash --norc
+    ```
+- Exec into Up container: 
+    ```
+    docker exec -it aup_lab2 /bin/bash
+    ```
+- If Container is exited, then use start
+    ```
+    docker start aup_lab2
+    ```
+
+## Qemu
+- Launch httpd using busybox
+```
+```

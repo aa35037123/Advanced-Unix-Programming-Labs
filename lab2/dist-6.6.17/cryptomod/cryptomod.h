@@ -1,6 +1,9 @@
 #ifndef CRYPTOMOD_H
 #define CRYPTOMOD_H
 
+#include <crypto/skcipher.h>
+#include <linux/scatterlist.h>
+
 #define CM_KEY_MAX_LEN 32
 #define CM_BLOCK_SIZE 16
 #define MAX_BUFFER_SIZE 1024
@@ -22,19 +25,23 @@ struct cryptodev_state {
     int configured;  // set to 1 after configure CM_IOC_SETUP
     int finalized;   // set to 1 after finalize CM_IOC_FINALIZE
     enum CryptoMode c_mode;
+    enum IOMode io_mode;
     int key_len;
     char key[CM_KEY_MAX_LEN];
 
     unsigned char in_buf[MAX_BUFFER_SIZE];
-    int in_len;
+    int in_len;  // total in_buf length
     
     // out buffet needs to padding to be mulitple of block size 
     unsigned char out_buf[MAX_BUFFER_SIZE];
-    int out_len;
-    int out_offset;
+    int out_len;  // total out_buf length
+    int out_offset;  // current read position in out_buf
 
     unsigned long total_written;
     unsigned long total_read;
+
+    // used when adv io_mode
+    struct crypto_skcipher *tfm;
 };
 // ioctl command
 #define CM_IOC_MAGIC 'k'

@@ -6,7 +6,7 @@ RUN dpkg --add-architecture armel
 RUN dpkg --add-architecture mipsel	# no mips
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y tini \
-		xz-utils gcc make autoconf automake gawk pkg-config file less bzip2 cpio qemu-system-x86 \
+		xz-utils gcc make autoconf automake gawk pkg-config file less bzip2 cpio qemu-system-x86 wget\
 		gcc-arm-linux-gnueabi gcc-mips-linux-gnu gcc-mipsel-linux-gnu \
 		flex bison bc libncurses-dev patch rsync \
 		vim
@@ -15,4 +15,8 @@ RUN if [ `uname -m` != 'aarch64' ]; then apt-get update && apt-get upgrade -y &&
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 CMD [ "/usr/bin/sleep", "infinity" ]
-#docker run -it --rm --user "0:0" -v "`pwd`:/build" -w /build -e PS1="buildenv:\w\$ " aa35037123/crossbuild /bin/bash --norc
+# Image to container: docker run -it --rm --user "0:0" -v "`pwd`:/build" -w /build -e PS1="buildenv:\w\$ " aa35037123/crossbuild /bin/bash --norc
+# 						docker run -it --name aup_lab2  --user "0:0" -v "$(pwd):/build" -w /build -e PS1="buildenv:\w\$ " aa35037123/crossbuild /bin/bash --norc 
+# Exec into container: 
+#	docker exec -it aup_lab2 /bin/bash
+# If Container is 
