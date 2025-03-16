@@ -4,3 +4,5 @@
 *.tar
 *.tgz
 lab2/rootfs
+*.vscode
+*.DS_Store
