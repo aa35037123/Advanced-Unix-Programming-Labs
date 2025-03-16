@@ -1,4 +1,6 @@
 *.o
 *.cpio
 *.bz2
+*.tar
+*.tgz
 lab2/rootfs
