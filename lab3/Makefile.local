@@ -9,10 +9,10 @@ libgotoku.so: libgotoku_dummy.c libgotoku.h
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 libsolver.so: libsolver.c
-	$(CC) $(CFLAGS) -shared -o $@ $^ -ldl
+	$(CC) -g $(CFLAGS) -shared -o $@ $^ -ldl
 
 gotoku.local: gotoku.c
-	$(CC) -o $@ $^ -L. -lgotoku -Wl,-rpath,.
+	$(CC) -o $@ $^ -L. -lgotoku -Wl,-rpath=.
 
 clean:
 	rm -f *.so *.o gotoku.local

@@ -141,21 +141,40 @@ void generate_moves() {
             }
         }
     }
+    // 印出所有 moves
+    // printf("Generated moves (count: %d):\n", move_count);
+    // for (int i = 0; i < 20; i++) {
+    //     printf("Move %3d: x=%2d, y=%2d, val=%d\n", i, moves[i].x, moves[i].y, moves[i].val);
+    // }
 }
 
 void hijack_gop_N_got() {
+    // printf("Inside hijack_gop_N_got\n");
     // hijack gop_N GOT entry to our own function
     for(int i = 0; i < move_count; i++) {
+        // printf("I'm here");
+        if (i >= sizeof(gop_got_offsets) / sizeof(gop_got_offsets[0])) {
+            // fprintf(stderr, "patch_got: Exceeded gop_got_offsets size at i=%d\n", i);
+            exit(1);  // 或 break;
+        }
         uintptr_t addr = pie_base + gop_got_offsets[i];
-        if(moves[i].val != 0) {
+        // printf("gop_got_offsets[%d] = %p\n", i, (void *)addr);
+        if(moves[i].val > 0 && moves[i].val <= 9) {
+            char sym[32];
+            snprintf(sym, sizeof(sym), "gop_fill_%d", moves[i].val);
+            // printf("✔ %s = %p\n", sym, (void *)real_gop_fill[moves[i].val]);
             *(void **)(addr) = (void *)real_gop_fill[moves[i].val];
         } else if (moves[i].x == 1) {
+            // printf("✔ gop_right = %p\n", (void *)real_gop_right);
             *(void **)(addr) = (void *)real_gop_right;
         } else if (moves[i].x == -1) {
+            // printf("✔ gop_left = %p\n", (void *)real_gop_left);
             *(void **)(addr) = (void *)real_gop_left;
         } else if (moves[i].y == 1) {
+            // printf("✔ gop_down = %p\n", (void *)real_gop_down);
             *(void **)(addr) = (void *)real_gop_down;
         } else if (moves[i].y == -1) {
+            // printf("✔ gop_up = %p\n", (void *)real_gop_up);
             *(void **)(addr) = (void *)real_gop_up;
         }
     }
@@ -165,6 +184,7 @@ void hijack_gop_N_got() {
     Make GOT allow writing
 */
 void mprotect_got() {
+    // size_t page_size = sysconf(_SC_PAGESIZE);
     // make got page to align 4kb(1 page)
     uintptr_t got_page = (pie_base + gop_got_offsets[0]) & ~(0x1000 - 1);
     // make 3 pages writable
@@ -173,36 +193,41 @@ void mprotect_got() {
         total size = 1200 * 8 = 9600 bytes
         9600 bytes ~= 2.3 pages < 3 pages
     */
-    mprotect((void *)got_page, 0x3000, PROT_READ | PROT_WRITE);
+    mprotect((void *)got_page, 0x4000, PROT_READ | PROT_WRITE);
 }
 
 
 int prepare_funcs() {
-    lib_handle = dlopen("libgotoku.so", RTLD_LAZY);
+    lib_handle = dlopen("./libgotoku.so", RTLD_LAZY);
     if (!lib_handle) {
-        fprintf(stderr, "[!] dlopen failed\n");
+        fprintf(stderr, "[!] dlopen failed: %s\n", dlerror());
         return -1;
     }
+    printf("[+] libgotoku.so loaded at %p\n", lib_handle);
     real_gop_up = dlsym(lib_handle, "gop_up");
     if (!real_gop_up){
         fprintf(stderr, "[!] dlsym gop_up failed: %s\n", dlerror());
         return -1;
     }
+    printf("[+] real_gop_up = %p\n", real_gop_up);
     real_gop_down = dlsym(lib_handle, "gop_down");
     if (!real_gop_down) {
         fprintf(stderr, "[!] dlsym gop_down failed: %s\n", dlerror());
         return -1;
     }
+    printf("[+] real_gop_down = %p\n", real_gop_down);
     real_gop_left = dlsym(lib_handle, "gop_left");
     if (!real_gop_left) {
         fprintf(stderr, "[!] dlsym gop_left failed: %s\n", dlerror());
         return -1;
     }
+    printf("[+] real_gop_left = %p\n", real_gop_left);
     real_gop_right = dlsym(lib_handle, "gop_right");
     if (!real_gop_right) {
         fprintf(stderr, "[!] dlsym gop_right failed: %s\n", dlerror());
         return -1;
     }
+    printf("[+] real_gop_right = %p\n", real_gop_right);
     real_gop_show = dlsym(lib_handle, "gop_show");
     if (!real_gop_show) {
         fprintf(stderr, "[!] dlsym gop_show failed: %s\n", dlerror());
@@ -227,6 +252,7 @@ int prepare_funcs() {
             fprintf(stderr, "[!] dlsym %s failed: %s\n", sym, dlerror());
             return -1;
         }
+        printf("[+] real_gop_fill[%d] = %p\n", i, real_gop_fill[i]);
     }
     real_game_load = dlsym(lib_handle, "game_load");
     if (!real_game_load) {
@@ -245,7 +271,7 @@ int game_init() {
         fprintf(stderr, "[!] prepare_funcs failed\n");
         return -1;
     }
-    uintptr_t main_addr = (uintptr_t)real_game_get_ptr();
+    uintptr_t main_addr = game_get_ptr();
     printf("SOLVER: _main = %p\n", (void *)main_addr);
     pie_base = main_addr - MAIN_OFFSET;
     mprotect_got();
