@@ -210,7 +210,7 @@ int prepare_funcs() {
         fprintf(stderr, "[!] dlopen failed: %s\n", dlerror());
         return -1;
     }
-    printf("[+] libgotoku.so loaded at %p\n", lib_handle);
+    printf("SOLVER: libgotoku.so loaded at %p\n", lib_handle);
     real_gop_up = dlsym(lib_handle, "gop_up");
     if (!real_gop_up){
         fprintf(stderr, "[!] dlsym gop_up failed: %s\n", dlerror());
