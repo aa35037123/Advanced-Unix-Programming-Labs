@@ -153,10 +153,10 @@ void hijack_gop_N_got() {
     // hijack gop_N GOT entry to our own function
     for(int i = 0; i < move_count; i++) {
         // printf("I'm here");
-        if (i >= sizeof(gop_got_offsets) / sizeof(gop_got_offsets[0])) {
-            // fprintf(stderr, "patch_got: Exceeded gop_got_offsets size at i=%d\n", i);
-            exit(1);  // 或 break;
-        }
+        // if (i >= sizeof(gop_got_offsets) / sizeof(gop_got_offsets[0])) {
+        //     // fprintf(stderr, "patch_got: Exceeded gop_got_offsets size at i=%d\n", i);
+        //     exit(1);  // 或 break;
+        // }
         uintptr_t addr = pie_base + gop_got_offsets[i];
         // printf("gop_got_offsets[%d] = %p\n", i, (void *)addr);
         if(moves[i].val > 0 && moves[i].val <= 9) {
@@ -184,21 +184,28 @@ void hijack_gop_N_got() {
     Make GOT allow writing
 */
 void mprotect_got() {
-    // size_t page_size = sysconf(_SC_PAGESIZE);
+    size_t page_size = sysconf(_SC_PAGESIZE);
+    // printf("mprotect_got: page_size = %zu\n", page_size);
     // make got page to align 4kb(1 page)
-    uintptr_t got_page = (pie_base + gop_got_offsets[0]) & ~(0x1000 - 1);
+    // uintptr_t got_page = (pie_base + gop_got_offsets[0]) & ~(0x1000 - 1);
+    // printf("mprotect_got: got_page = %p\n", (void *)got_page);
+    // uintptr_t start_page = pie_base & ~(page_size - 1);
+    uintptr_t start_page = (pie_base + MINEST_GOT_OFFSET) & ~(page_size - 1);
+    // printf("mprotect_got: start_page = %p\n", (void *)start_page);
+    size_t desired_size = 0x3000;  // 192kB
+    size_t size = ((desired_size + page_size - 1) / page_size) * page_size;
     // make 3 pages writable
     /*
         Each got entry is 8 bytes, there are 1200 entries
         total size = 1200 * 8 = 9600 bytes
         9600 bytes ~= 2.3 pages < 3 pages
     */
-    mprotect((void *)got_page, 0x4000, PROT_READ | PROT_WRITE);
+    mprotect((void *)start_page, size, PROT_READ | PROT_WRITE);
 }
 
 
 int prepare_funcs() {
-    lib_handle = dlopen("./libgotoku.so", RTLD_LAZY);
+    lib_handle = dlopen("libgotoku.so", RTLD_LAZY);
     if (!lib_handle) {
         fprintf(stderr, "[!] dlopen failed: %s\n", dlerror());
         return -1;
@@ -209,25 +216,25 @@ int prepare_funcs() {
         fprintf(stderr, "[!] dlsym gop_up failed: %s\n", dlerror());
         return -1;
     }
-    printf("[+] real_gop_up = %p\n", real_gop_up);
+    // printf("[+] real_gop_up = %p\n", real_gop_up);
     real_gop_down = dlsym(lib_handle, "gop_down");
     if (!real_gop_down) {
         fprintf(stderr, "[!] dlsym gop_down failed: %s\n", dlerror());
         return -1;
     }
-    printf("[+] real_gop_down = %p\n", real_gop_down);
+    // printf("[+] real_gop_down = %p\n", real_gop_down);
     real_gop_left = dlsym(lib_handle, "gop_left");
     if (!real_gop_left) {
         fprintf(stderr, "[!] dlsym gop_left failed: %s\n", dlerror());
         return -1;
     }
-    printf("[+] real_gop_left = %p\n", real_gop_left);
+    // printf("[+] real_gop_left = %p\n", real_gop_left);
     real_gop_right = dlsym(lib_handle, "gop_right");
     if (!real_gop_right) {
         fprintf(stderr, "[!] dlsym gop_right failed: %s\n", dlerror());
         return -1;
     }
-    printf("[+] real_gop_right = %p\n", real_gop_right);
+    // printf("[+] real_gop_right = %p\n", real_gop_right);
     real_gop_show = dlsym(lib_handle, "gop_show");
     if (!real_gop_show) {
         fprintf(stderr, "[!] dlsym gop_show failed: %s\n", dlerror());
@@ -252,7 +259,7 @@ int prepare_funcs() {
             fprintf(stderr, "[!] dlsym %s failed: %s\n", sym, dlerror());
             return -1;
         }
-        printf("[+] real_gop_fill[%d] = %p\n", i, real_gop_fill[i]);
+        // printf("[+] real_gop_fill[%d] = %p\n", i, real_gop_fill[i]);
     }
     real_game_load = dlsym(lib_handle, "game_load");
     if (!real_game_load) {
@@ -271,9 +278,9 @@ int game_init() {
         fprintf(stderr, "[!] prepare_funcs failed\n");
         return -1;
     }
-    uintptr_t main_addr = game_get_ptr();
+    void* main_addr = real_game_get_ptr();
     printf("SOLVER: _main = %p\n", (void *)main_addr);
-    pie_base = main_addr - MAIN_OFFSET;
+    pie_base = (uintptr_t)main_addr - MAIN_OFFSET;
     mprotect_got();
     return real_game_init();
 }
@@ -289,13 +296,13 @@ gotoku_t *game_load(const char *filename) {
         }
     }
     solve_sudoku(board, 0, 0);
-    printf("SOLVER: solved board:\n");
-    for(int y = 0; y < 9; y++){
-        for(int x = 0; x < 9; x++){
-            printf("%d ", board[y][x]);
-        }
-        printf("\n");
-    }
+    // printf("SOLVER: solved board:\n");
+    // for(int y = 0; y < 9; y++){
+    //     for(int x = 0; x < 9; x++){
+    //         printf("%d ", board[y][x]);
+    //     }
+    //     printf("\n");
+    // }
     generate_moves();
     printf("SOLVER: moves count = %d\n", move_count);
     hijack_gop_N_got();
@@ -303,12 +310,3 @@ gotoku_t *game_load(const char *filename) {
     return real_board;
 }
 
-// void gop_show() {
-//     if(!_initialized) {
-//         _initialized = 1;
-        
-//         hijack_gop_N_got();
-//         printf("SOLVER: hijack gop_N GOT\n");
-//     }
-//     real_gop_show();
-// }

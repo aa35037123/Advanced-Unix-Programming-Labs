@@ -1,17 +1,18 @@
-# Makefile
-CC=x86_64-linux-gnu-gcc
-CFLAGS=-fPIC -Wall
+# Native Makefile (for aarch64 or x86 machines)
+
+CC = gcc
+CFLAGS = -fPIC -Wall
 
 all: libgotoku.so gotoku.local libsolver.so
 
 libgotoku.so: libgotoku_dummy.c libgotoku.h
-	$(CC) -shared -fPIC -o $@ $^
+	$(CC) $(CFLAGS) -shared -o $@ $^
 
 libsolver.so: libsolver.c
-	$(CC) -shared -fPIC -o $@ $^ -ldl
+	$(CC) -g $(CFLAGS) -shared -o $@ $^ -ldl
 
 gotoku.local: gotoku.c
-	$(CC) -o $@ $^  -L. -lgotoku -Wl,-rpath=.
+	$(CC) -o $@ $^ -L. -lgotoku -Wl,-rpath=.
 
 clean:
 	rm -f *.so *.o gotoku.local

@@ -2,6 +2,9 @@
 #pragma once
 
 #define MAIN_OFFSET 0x16c89
+#define MINEST_GOT_OFFSET 0x1ba28
+
+#define LARGEST_GOT_OFFSET 0x1dfd0
 
 const unsigned int gop_got_offsets[] = {
     [0] = 0x1c528,  // gop_1
