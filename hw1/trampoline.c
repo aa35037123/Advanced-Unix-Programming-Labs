@@ -15,11 +15,14 @@
 __attribute__((noinline))
 void asm_syscall_hook(void) {
     printf("Hello from trampoline!\n");
-    // exit(0); 
+    
 }
 
 __attribute__((constructor))
 void setup_trampoline() {
+    if (getenv("ZDEBUG")) {
+        asm("int3");
+    }
     void *mem = mmap((void *)0x0, 4096,
                         PROT_READ | PROT_WRITE | PROT_EXEC,
                         MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
@@ -35,38 +38,19 @@ void setup_trampoline() {
     
      // 2. trampoline assembly logic, start at offset 512
     uint8_t *t = (uint8_t *)mem + NR_syscalls;
-    t[0] = 0xCC;
-     // sub $0x80, %rsp
-     t[0] = 0x48;
-     t[1] = 0x81;
-     t[2] = 0xec;
-     t[3] = 0x80;
-     t[4] = 0x00;
-     t[5] = 0x00;
-     t[6] = 0x00;
- 
-     // this code jump to asm_syscall_hook
-     // movabs $addr, %r11
-     t[7]  = 0x49;
-     t[8]  = 0xbb;
-     // put asm_syscall_hook addr 
-     uint64_t hook_addr = (uint64_t)asm_syscall_hook;
-     for (int i = 0; i < 8; i++)
-         t[9 + i] = (hook_addr >> (8 * i)) & 0xff;
- 
-    // just jump, don't link
-    // // jmp *%r11
-    // t[17] = 0x41;
-    // t[18] = 0xff;
-    // t[19] = 0xe3;
+    // this code jump to asm_syscall_hook
+    // movabs $addr, %r11
+    t[0]  = 0x49;
+    t[1]  = 0xbb;
+    // put asm_syscall_hook addr 
+    uint64_t hook_addr = (uint64_t)asm_syscall_hook;
+    for (int i = 0; i < 8; i++)
+        t[2 + i] = (hook_addr >> (8 * i)) & 0xff;
 
-    // call %r11
-    t[17] = 0x41; t[18] = 0xFF; t[19] = 0xD3;
-    // add rsp, 0x80
-    t[20] = 0x48; t[21] = 0x81; t[22] = 0xC4;
-    t[23] = 0x80; t[24] = 0x00; t[25] = 0x00; t[26] = 0x00;
-
+   // call %r11
+   t[10] = 0x41; t[11] = 0xFF; t[12] = 0xD3;
+    
     // ret
-    t[27] = 0xC3;
+    t[13] = 0xC3;
 
 }
