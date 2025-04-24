@@ -270,7 +270,7 @@ int prepare_funcs() {
 }
 
 
-// ✅ Intercept game_init instead of game_load
+
 int game_init() {
     printf("UP113_GOT_PUZZLE_CHALLENGE\n");
     int ret = prepare_funcs();
