@@ -19,4 +19,4 @@ logger.so: logger.c
 	$(CC) $(CFLAGS) -o $@ logger.c $(LDFLAGS)
 
 clean:
-	rm -f libzpoline.so* logger.so *.o*
+	rm -f libzpoline.so* logger.so *.o* index.html* main.c
