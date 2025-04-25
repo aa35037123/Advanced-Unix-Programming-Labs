@@ -4,7 +4,7 @@ LDFLAGS = -ldl -lcapstone
 
 .PHONY: all clean
 
-all: libzpoline.so.1 libzpoline.so.2 libzpoline.so
+all: libzpoline.so.1 libzpoline.so.2 libzpoline.so logger.so
 
 libzpoline.so.1: trampoline.c
 	$(CC) $(CFLAGS) -o $@ $<
@@ -15,5 +15,8 @@ libzpoline.so.2: rewrite.c
 libzpoline.so: hook.c
 	$(CC) $(CFLAGS) -o $@ hook.c $(LDFLAGS)
 
+logger.so: logger.c
+	$(CC) $(CFLAGS) -o $@ logger.c $(LDFLAGS)
+
 clean:
-	rm -f libzpoline.so* *.o*
+	rm -f libzpoline.so* logger.so *.o*

@@ -8,6 +8,9 @@
 #include <dlfcn.h>
 #include <link.h>
 #include <capstone/capstone.h>
+#include <sched.h>
+#include <sys/syscall.h>
+
 
 #define PAGE_SIZE 4096
 #define TRAMPOLINE_ADDR ((void *)0x0)
@@ -103,17 +106,20 @@ int64_t handler(int64_t rdi, int64_t rsi, int64_t rdx,
                 int64_t r10_on_stack,
                 int64_t rax_on_stack,
                 int64_t retptr) {
-        if (rax_on_stack == 435 / NR_clone3 /) {
-            // printf("clone3\n");
-            // assert(0);
-            uint64_t ca = (uint64_t )rdi; / struct clone_args /
-            if (ca[0] / flags */ & CLONE_VM) {
-                // printf("clone3 vm\n");
-                // asm__("int3");
-                ca[6] /* stack_size */ -= sizeof(uint64_t);                            // stack_size -= 8
-                ((uint64_t)(ca[5] /* stack / + ca[6] / stack_size */)) = retptr;  // put return address to stack
-            }
+    if (rax_on_stack == 435 /* __NR_clone3 */) {
+        uint64_t *ca = (uint64_t *) rdi; /* struct clone_args */
+        if (ca[0] /* flags */ & CLONE_VM) {
+            ca[6] /* stack_size */ -= sizeof(uint64_t);  // sub $8, $rsp // give 8 bytes to stack, manually store return pointer
+            *((uint64_t *) (ca[5] /* stack */ + ca[6] /* stack_size */)) = retptr;
         }
+    }
+    if (rax_on_stack == __NR_clone) {
+		if (rdi & CLONE_VM) { // pthread creation
+			/* push return address to the stack */
+			rsi -= sizeof(uint64_t);
+			*((uint64_t *) rsi) = retptr;
+		}
+	}
     syscall_hook_fn_t fn = hooked_syscall ? hooked_syscall : trigger_syscall;
     // return trigger_syscall(rax_on_stack, rdi, rsi, rdx, r10_on_stack, r8, r9);
     return fn(rdi, rsi, rdx, r10_on_stack, r8, r9, rax_on_stack);
