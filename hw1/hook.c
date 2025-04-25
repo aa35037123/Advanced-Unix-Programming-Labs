@@ -74,7 +74,7 @@ void __raw_asm() {
         "pushq %rax\n"  // syscall number
         "pushq %r10\n"  // syscall arg4
         
-        "callq handler@PLT\n"
+        "callq handler@PLT\n"  // before enter handler, stack must ensure 16-bytes alignment
 
         "popq %r10\n"
         "addq $16, %rsp\n"  // pop syscall number and return address, doesn't need to use
