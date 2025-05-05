@@ -105,5 +105,65 @@ sigprocmask:
     syscall
     ret
 
+
+global setjmp
+setjmp:
+    ; rdi = jmp_buf pointer
+    mov [rdi + 0], rbx    ; save rbx
+    mov [rdi + 8], rbp    ; save rbp
+    mov [rdi + 16], r12   ; save r12
+    mov [rdi + 24], r13   ; save r13
+    mov [rdi + 32], r14   ; save r14
+    mov [rdi + 40], r15   ; save r15
+    mov [rdi + 48], rsp   ; save rsp
+
+    ; save return address
+    mov rax, [rsp]      ; Get return address from top of stack
+    mov [rdi + 56], rax ; save return address
+    
+    ; save signal mask
+    mov eax, 14     ;   syscall no for rt_sigprocmask
+    xor rsi, rsi    ;   newset = NULL(no change to current mask)
+    lea rdx, [rdi + 64] ;   oldset = &jmp_buf->mask (address of sigset_t) set oldset to jmp_buf + 64
+    xor edi, edi    ;   how = SIG_BLOCK(0), put newset into current mask, but newset is NULL, so no change
+    mov r10, 8          ;   sizeof(sigset_t)
+    syscall
+
+    xor eax, eax    ;   return 0
+    ret
+
+global longjmp
+longjmp:
+    ; rdi = jmp_buf pointer
+    ; rsi = return value
+    ; restore registers
+    mov rbx, [rdi + 0]
+    mov rbp, [rdi + 8]
+    mov r12, [rdi + 16]
+    mov r13, [rdi + 24]
+    mov r14, [rdi + 32]
+    mov r15, [rdi + 40]
+
+    mov rsp, [rdi + 48]     ; restore stack pointer
+
+    ; restore return value
+    mov r8, rsi
+    
+    ; ; jmp to return address
+    mov r9, [rdi + 56]  ; saved rip
+
+    ; restore signal mask
+    mov eax, 14         ; syscall no for rt_sigprocmask
+    lea rsi, [rdi + 64] ; set = &jmp_buf->mask. set newset to previous signal mask store in jmp_buf
+    xor rdx, rdx        ; oldset = NULL
+    mov edi, 2         ; how = SIG_SETMASK(2), put newset into current mask
+    mov r10, 8          ; sizeof(sigset_t)
+    syscall
+
+    mov rax, r8        ; return value
+    
+    jmp r9              ; jump to where setjmp would have returned
+
+
 section .data
 seed dq 0
