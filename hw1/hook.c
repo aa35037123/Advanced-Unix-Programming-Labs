@@ -1,42 +1,47 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 #include <stdint.h>
-#include <assert.h>
+#include <string.h>
 #include <sys/mman.h>
+#include <unistd.h>
+#include <dlfcn.h>
+#include <link.h>
 #include <capstone/capstone.h>
+#include <sched.h>
+#include <sys/syscall.h>
 
 
 #define PAGE_SIZE 4096
 #define TRAMPOLINE_ADDR ((void *)0x0)
 #define NR_syscalls 512
-#define MAX_SYSCALLS 1000000
+#define MAX_SYSCALLS 100000
 
-void decode_leetspeak(char *buf, size_t len) {
-    for(size_t i = 0; i < len; ++i) {
-        switch(buf[i]) {
-            case '0': buf[i] = 'o'; break;
-            case '1': buf[i] = 'i'; break;
-            case '2': buf[i] = 'z'; break;
-            case '3': buf[i] = 'e'; break;
-            case '4': buf[i] = 'a'; break;
-            case '5': buf[i] = 's'; break;
-            case '6': buf[i] = 'g'; break;
-            case '7': buf[i] = 't'; break;
-            default: break;
-        }
-    }
-}
+typedef int64_t (*syscall_hook_fn_t)(int64_t, int64_t, int64_t, int64_t,
+                                        int64_t, int64_t, int64_t);
 
-/* 
-    syscall abi: 
-    this function translate system v function syscall to linux syscall abi
-    rax, rdi, rsi, rdx, $r10, %r8, %r9 to system call
-*/
+syscall_hook_fn_t hooked_syscall = NULL;
+
 extern int64_t trigger_syscall(int64_t, int64_t, int64_t, int64_t,
     int64_t, int64_t, int64_t);
+
+
+/*
+    Differ from rewirte.c
+    C system v abi
+    *   rdi = arg1, rsi = arg2, rdx = arg3,
+    *   rcx = arg4, r8 = arg5, r9 = arg6,
+    *   [rsp+8] = arg7
+    linux syscall abi
+    *   rax ← syscall number
+    *   rdi ← arg1
+    *   rsi ← arg2
+    *   rdx ← arg3
+    *   r10 ← arg4(rcx)
+    *   r8  ← arg5
+    *   r9  ← arg6
+*/
+
 
 extern void asm_syscall_hook(void);
 
@@ -44,13 +49,8 @@ void __raw_asm() {
     asm volatile(
         ".globl trigger_syscall \n"
         "trigger_syscall:\n"
-        "mov %rdi, %rax\n"
-        "mov %rsi, %rdi\n"
-        "mov %rdx, %rsi\n"
-        "mov %rcx, %rdx\n"
-        "mov %r8, %r10\n"
-        "mov %r9, %r8\n"
-        "mov 8(%rsp), %r9\n"  // because c calling convention. args after 7 should be put on stack
+        "mov 8(%rsp), %rax\n"  // move arg7 to rax
+        "mov %rcx, %r10\n"  // mov arg4(rcx) to r10
         "syscall\n"
         "ret\n"
     );
@@ -76,8 +76,8 @@ void __raw_asm() {
         "pushq 8(%rbp)\n"  // return address(produced by call %r11 in trampoline)
         "pushq %rax\n"  // syscall number
         "pushq %r10\n"  // syscall arg4
-
-        "callq handler@PLT\n"
+        
+        "callq handler@PLT\n"  // before enter handler, stack must ensure 16-bytes alignment
 
         "popq %r10\n"
         "addq $16, %rsp\n"  // pop syscall number and return address, doesn't need to use
@@ -101,18 +101,28 @@ void __raw_asm() {
 }
 
 int64_t handler(int64_t rdi, int64_t rsi, int64_t rdx,
-                  int64_t __rcx __attribute__((unused)),
-                  int64_t r8, int64_t r9,
-                  int64_t r10_on_stack,
-                  int64_t rax_on_stack,
-                  int64_t retptr) {
-    // rax: syscall no, rdi: stdout fd
-    if(rax_on_stack == 1 && rdi == 1) {
-        // do leetspeak decode
-        // rsi: pointer to data, rdx: the length of data
-        decode_leetspeak((char *)rsi, rdx);
+                int64_t __rcx __attribute__((unused)),
+                int64_t r8, int64_t r9,
+                int64_t r10_on_stack,
+                int64_t rax_on_stack,
+                int64_t retptr) {
+    if (rax_on_stack == 435 /* __NR_clone3 */) {
+        uint64_t *ca = (uint64_t *) rdi; /* struct clone_args */
+        if (ca[0] /* flags */ & CLONE_VM) {
+            ca[6] /* stack_size */ -= sizeof(uint64_t);  // sub $8, $rsp // give 8 bytes to stack, manually store return pointer
+            *((uint64_t *) (ca[5] /* stack */ + ca[6] /* stack_size */)) = retptr;
+        }
     }
-    return trigger_syscall(rax_on_stack, rdi, rsi, rdx, r10_on_stack, r8, r9);
+    if (rax_on_stack == __NR_clone) {
+		if (rdi & CLONE_VM) { // pthread creation
+			/* push return address to the stack */
+			rsi -= sizeof(uint64_t);
+			*((uint64_t *) rsi) = retptr;
+		}
+	}
+    syscall_hook_fn_t fn = hooked_syscall ? hooked_syscall : trigger_syscall;
+    // return trigger_syscall(rax_on_stack, rdi, rsi, rdx, r10_on_stack, r8, r9);
+    return fn(rdi, rsi, rdx, r10_on_stack, r8, r9, rax_on_stack);
 }
 
 void rewrite_syscall() {
@@ -225,11 +235,31 @@ void rewrite_syscall() {
     fclose(maps);
 }
 
+void setup_hook_library(){
+    hooked_syscall = trigger_syscall;
+    const char *lib_path = getenv("LIBZPHOOK");
+    void *handle = dlmopen(LM_ID_NEWLM, lib_path, RTLD_NOW);
+    if(!handle) {
+        fprintf(stderr, "dlmopen failed: %s\n", dlerror());
+        return;
+    }
+    void (*hook_init)(const syscall_hook_fn_t, syscall_hook_fn_t *) = 
+        dlsym(handle, "__hook_init");
+    
+    if(!hook_init){
+        fprintf(stderr, "dlsym __hook_init failed: %s\n", dlerror());
+        return;
+    }
+    // fprintf(stderr, "[zpoline] dlsym __hook_init succeeded\n");
+    hook_init(trigger_syscall, &hooked_syscall);
+}
+
 __attribute__((constructor))
 void setup_trampoline() {
     if (getenv("ZDEBUG")) {
         asm("int3");
     }
+    
     /* map a memory with size 4096 at 0x0*/
     void *mem = mmap((void *)0x0, 4096,
                         PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -264,5 +294,9 @@ void setup_trampoline() {
 
 
     rewrite_syscall();
+
+    // setup hook library to get the address of syscall_hook_fn loaded from LIBZPHOOK library
+    setup_hook_library();
 }
+
 
