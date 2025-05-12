@@ -7,7 +7,7 @@ context.log_level = 'info'
 HOST = 'up.zoolab.org'
 PORT = 10933
 FLAG_PATH = '/secret/FLAG.txt'
-NUM_REQUESTS = 10   
+NUM_REQUESTS = 1000
 
 def compute_cookie(seed):
     return ((seed * 6364136223846793005 + 1) & 0xFFFFFFFFFFFFFFFF) >> 33
@@ -54,7 +54,8 @@ def main():
         io.send(request_payload)
 
     time.sleep(0.5)
-    response = io.recv(timeout=4).decode(errors='ignore')
+    # response = io.recv(timeout=4).decode(errors='ignore')
+    response = io.recvall().decode(errors='ignore')
 
     print("\n=== Combined Response ===")
     print(response)
