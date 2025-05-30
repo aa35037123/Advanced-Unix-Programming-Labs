@@ -34,7 +34,7 @@ for i in range(100):
     # step 2: produce a job that will be refused cuz it is localhost
     """
         It'll generate a race condition, because this job also call gethostbyname2
-        and gethostbyname2 will write in the same global variable, 
+        and gethostbyname2 will write in the same global variable,
         cover the previous job's result.
         In result, previous job will read content from 127.0.0.1/10000(cuz previous conditions are already passed)
     """
