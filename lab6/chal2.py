@@ -7,7 +7,6 @@ context.terminal = ['tmux', 'splitw', '-h']
 # p = process()
 p = remote('up.zoolab.org', 12342)
 
-
 # Step 1: Read banner
 banner = p.recvuntil(b"What's your name? ")
 print(repr(banner))
